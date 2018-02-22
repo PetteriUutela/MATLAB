@@ -1,0 +1,93 @@
+% MATLAB
+% Petteri Uutela
+% Kalman filter for noisy sinusoidal signal
+%_________________________________________________________________________
+% This script simulates  the true signal and creates the noisy signal - so 
+% nothing needs to be loaded. The noise levels should be easy to change, 
+% if you want to see how it affects the situation. The code can be used
+% for educational purposes.
+%_________________________________________________________________________
+
+
+%__________________________________________________________________________
+% Clear the previous stuff
+    clc, close all, clear all;
+    
+%__________________________________________________________________________
+% Sample information and noise information
+    N = 500;                % Amount of samples   
+    mean_v = 0;             % Expectation of v_k
+    std_v = 0.12;           % Standard deviation of v_k
+    var_v = std_v^2;        % Variance of v_k
+    Cv = var_v;             % Covariance of error
+    iCv = 1./var_v;         % Inverse covariance of error
+%__________________________________________________________________________
+% True measurements
+    t = linspace(1,500,N)';      % Time-grid
+    x_true = 4 + sin(0.03.*t);   % True measurements
+
+%__________________________________________________________________________
+% Noisy measurements
+    y = x_true + (mean_v) + std_v*randn(N,1);
+      
+%__________________________________________________________________________
+% Plot the true and noisy measurements
+    figure(1)
+        plot(t,y,'r.');
+        hold on;
+        plot(t,x_true,'b');
+        xlabel('Time domain (s)');
+        ylabel('Signal value');
+        legend('Measurements','True values','Location','Best');
+        title('Comparing true values with measurements');       
+%__________________________________________________________________________
+% State noise
+    mean_w = 0;             % Mean of the state noise
+    std_w = 0.03;           % Standard deviation of the state noise
+    var_w = std_w^2;        % Variance of the state noise
+    Cw = var_w;             % Covariance matrix
+    iCw = 1./var_w;         % Inverse of the covariance
+%__________________________________________________________________________
+% Initial information for the Kalman filter
+% Preallocate information
+    x_est = zeros(N+1,1);   % Preallocate the estimate
+    x_est(1) = 10;          % Ability to give the initial value
+    var_e = 1000;           % How certain are we of the initial guess
+    Ce = var_e;             % Covariance of the error
+%    iCe = 1/var_e;         % Inverse covariance of the error
+    F = 1;
+    G = 1;
+    H = 1;
+%__________________________________________________________________________
+% Loop through all the time points with Kalman filter
+% Note: We use the "innovation form" of the Kalman filter - see Aku's
+% lecture notes part 1.3 pdf page 17.
+for k = 1:N
+    x_prev = F*x_est(k,1);
+    Ctt = F*Ce*F' + G*Cw*G';
+    Kinside = H*Ctt*H' + Cv;    % Part of the Kalman gain
+    Koutside = Ctt*H';          % Part of the Kalman gain
+    K = Koutside/(Kinside);       % Kalman gain.
+    
+    Ce = Ctt - K*H*Ctt;
+    errors(:,k) = diag(Ce);
+    
+    x_est(k+1,1) = x_prev + K*(y(k) - H*x_prev);
+end
+%__________________________________________________________________________
+% Plot what we got
+figure(2)
+subplot(121)
+    plot(t,y,'r.');
+    hold on;
+    plot(t,x_est(2:end),'k')
+    plot(t,x_true,'b');
+    xlabel('Time domain (s)');
+    ylabel('Signal');
+    title('Sinewave');
+    legend('Data','Estimate','True');
+subplot(122)
+    plot(errors);
+    xlabel('Time domain (s)');
+    ylabel('Error');
+    title('Error of estimate');
